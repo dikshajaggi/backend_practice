@@ -41,4 +41,21 @@ router.get('/products/:id/:name', async (req, res) => {
   }
 });
 
+// GET PRODUCTS BY CATEGORY
+router.get('/products/:cat', async (req, res) => {
+  const category_item = req.params.cat;
+  try {
+    const products = await Product.find({ category: category_item }).sort('name');
+
+    if (products.length === 0) {
+      return res.status(404).json({ error: 'No products found in the specified category' });
+    }
+
+    res.status(200).json(products);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
 export default router;
