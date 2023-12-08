@@ -26,7 +26,7 @@ const authenticateUser = (req, res, next) => {
 };
 
 // api to add products to cart
-router.post('/add-to-cart/:productId', authenticateUser, async (req, res) => {
+router.post('/add-to-cart', authenticateUser, async (req, res) => {
     try {
         const userId = req.user.userId;
         // Check if the user exists
@@ -36,14 +36,28 @@ router.post('/add-to-cart/:productId', authenticateUser, async (req, res) => {
         }
 
         // Check if the product exists
-        const productId = req.params.productId;
-        const product = await Product.findOne({ id: productId });;
+        const productId = req.body.productId;
+        const quantity = req.body.quantity || 1; // Default to 1 if quantity is not provided
+
+        const product = await Product.findOne({ id: productId });
         if (!product) {
             return res.status(404).json({ message: 'Product not found' });
         }
 
-        // Add the product to the user's cart
-        user.cart.push(product);
+        // Check if the product is already in the user's cart
+        const existingProductIndex = user.cart.findIndex(item => item.product === product._id);
+
+        if (existingProductIndex !== -1) {
+            // If the product is already in the cart, update the quantity
+            user.cart[existingProductIndex].quantity += quantity;
+        } else {
+            // If the product is not in the cart, add it with the specified quantity
+            user.cart.push({
+                product: product._id,
+                quantity
+            });
+        }
+
         await user.save();
 
         res.status(200).json({ message: 'Product added to cart successfully' });
@@ -60,14 +74,20 @@ router.get('/all-products', authenticateUser, async (req, res) => {
         const userId = req.user ? req.user.userId : undefined;
 
         // Check if the user exists
-        const user = await User.findById(userId).populate('cart');
+        const user = await User.findById(userId).populate({
+            path: 'cart',
+            populate: { path: 'product', model: 'Product' }
+        });
 
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
         }
 
         // Extract cart products from the user
-        const cartProducts = user.cart;
+        const cartProducts = user.cart.map(cartItem => ({
+            product: cartItem.product,
+            quantity: cartItem.quantity
+        }));
 
         res.status(200).json({ cartProducts });
     } catch (error) {
@@ -75,6 +95,7 @@ router.get('/all-products', authenticateUser, async (req, res) => {
         res.status(500).json({ message: 'Internal Server Error' });
     }
 });
+
 
 // Route to delete a product from the user's cart
 router.delete('/delete-from-cart/:productId', authenticateUser, async (req, res) => {
@@ -93,7 +114,7 @@ router.delete('/delete-from-cart/:productId', authenticateUser, async (req, res)
         // Convert productId to a Buffer for comparison
         const productToRemove = Buffer.from(productId, 'hex');
         console.log(productToRemove, "rmeoving---")
-        const productIndex = user.cart.findIndex(item => Buffer.compare(item.id, productToRemove) === 0);
+        const productIndex = user.cart.findIndex(item => Buffer.compare(item.product.id, productToRemove) === 0);
 
         if (productIndex === -1) {
             return res.status(404).json({ message: 'Product not found in the cart' });
@@ -110,6 +131,44 @@ router.delete('/delete-from-cart/:productId', authenticateUser, async (req, res)
     }
 });
 
+// Route to update the quantity of a product in the user's cart
+router.patch('/update-cart/:productId', authenticateUser, async (req, res) => {
+    try {
+        const userId = req.user.userId;
+        const productId = req.params.productId;
+        const quantityChange = req.body.quantityChange; // This should be a positive or negative number
+
+        // Check if the user exists
+        const user = await User.findById(userId).populate('cart.product');
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        console.log(user.cart, "cart item---")
+
+        // Find the product in the user's cart
+        const cartItem = user.cart.find(item => item?.product?.id === productId);
+
+        if (!cartItem) {
+            return res.status(404).json({ message: 'Product not found in the cart' });
+        }
+
+        // Update the quantity of the product in the cart
+        cartItem.quantity = quantityChange;
+
+        // If the quantity becomes 0 or negative, remove the item from the cart
+        if (cartItem.quantity <= 0) {
+            user.cart = user.cart.filter(item => item.product.id !== productId);
+        }
+
+        await user.save();
+
+        res.status(200).json({ message: 'Cart updated successfully', updatedCart: user.cart });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Internal Server Error' });
+    }
+});
 
 
 export default router;
