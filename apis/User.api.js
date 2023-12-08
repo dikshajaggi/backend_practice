@@ -51,7 +51,7 @@ router.post('/login', async (req, res) => {
 
             if (passwordMatch) {
                 // Passwords match, generate and return a token
-                const token = jwt.sign({ userId: user._id }, 'your_secret_key', { expiresIn: '1h' });
+                const token = jwt.sign({ userId: user._id }, 'QiOjE3MDE2OTk0MzMsImV4cCI6MTcwMTcwMzAzM30.1sR1U6uNDE0cGB7Pb-Di-nBeiRgpMN3Jog4aduTlY4o', { expiresIn: '1h' });
                 return res.status(200).json({ message: 'Login successful', token });
             } else {
                 // Passwords don't match
