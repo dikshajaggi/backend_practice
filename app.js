@@ -11,6 +11,7 @@ import authRoutes from "./apis/Auth.api.js"
 import categoryRoute from "./apis/Category.api.js"
 import userRoutes from "./apis/User.api.js"
 import cartRoutes from "./apis/Cart.api.js"
+import verificationRoutes from "./apis/verificationRoutes.js"
 
 const { json } = pkg;
 const app = express();
@@ -25,6 +26,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/admin', authenticateAdmin, addProductRoutes, addCategoryRoutes);
 app.use('/api/', productRoutes, categoryRoute);
 app.use('/api/cart', cartRoutes);
+app.use('/verification', verificationRoutes);
 
 
 app.get("/", (req, res) => {
